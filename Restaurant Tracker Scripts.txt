@@ -1,0 +1,170 @@
+
+function onEdit(e) {
+  // Call all functions when a cell is edited
+  updateTimestampOnEdit(e);  // Specific timestamp update for "Maintenance Tracker"
+  checkBordersOnEdit(e);  // Global border check
+  checkMenuDates(e); // Check for valid menu date range
+  
+}
+
+function checkUserHasAccess(email, activeSheet)
+{
+  var email = email;
+  var sheet = activeSheet;
+
+  var editors = sheet.getEditors();
+      var hasAccess = false;
+
+      //loop through emails with access and check for Email
+      for (var i = 0; i < editors.length; i++) {
+        if (editors[i].getEmail() === email) {
+          hasAccess = true;
+          break;
+        }
+      }
+
+      //if email does not have access, add them as a viewer
+      if (!hasAccess) {
+        sheet.addViewer(email);
+        SpreadsheetApp.getUi().alert("The recipient did not have access, so they have been granted view access.");
+      }
+}
+
+function sendPurchaseOrderFormToManager ()
+{
+  var sheet = SpreadsheetApp.getActiveSpreadsheet(); // Get active spreadsheet
+  var activeSheet = sheet.getActiveSheet(); // Get active sheet
+  var sheetUrl = sheet.getUrl(); // Get the URL of the spreadsheet
+  var recipient = activeSheet.getRange("E36").getValue(); // Get the email address from cell E36
+
+  //get date and format it
+  var today = new Date(); 
+  var formattedDate = Utilities.formatDate(today, Session.getScriptTimeZone(), "dd/MM/yyyy");
+
+  try{
+    //checks if cell is empty
+    if(recipient){
+
+      //run function to check the email address provided has access to view the document - if not then permission will be granted
+      checkUserHasAccess(recipient, sheet);
+
+      var subject = "Update to: Purchase Order Form " + formattedDate;
+      var body = "Hello,\n\nThere has been an update to the Purchase Order Form. Please find the details below:\n\n" +
+            "Click here to view the Purchase Order Form: " + sheetUrl + "\n\n" +
+            "Please review it at your earliest convenience.\n\n" +
+            "Best regards,\n\n" +
+            Session.getActiveUser().getEmail();
+      
+      //sends email
+      MailApp.sendEmail(recipient, subject, body);
+      SpreadsheetApp.getUi().alert("Email sent to: " + recipient);
+
+  } else {
+    //no data in cell
+    SpreadsheetApp.getUi().alert("Error Sending Email - no data in cell E36");
+  }
+  }catch(error)
+  {
+    //if we get here theres a problem
+    SpreadsheetApp.getUi().alert("Failed to send the email: " + error.message);
+  }
+  
+  
+}
+
+function checkMenuDates(e)
+{
+  var sheet = e.source.getActiveSheet();
+  
+  //only run this check on the "Service Overview" sheet
+  if (sheet.getName() === "Service Overview") {   
+
+      // Get the values of D6 and D7
+      var dateD6 = sheet.getRange("D6").getValue();
+      var dateD7 = sheet.getRange("D7").getValue();
+  
+      //ensure both cells contain valid dates
+      if (dateD6 instanceof Date && dateD7 instanceof Date) {
+        //check if D7 is greater
+        if (dateD7 <= dateD6) {
+          SpreadsheetApp.getUi().alert("The Menu End date must be greater than the Menu Start date");
+          //clear the invalid date
+          sheet.getRange("D7").clearContent();
+        }
+      }
+  }
+  else{
+    return;
+  }
+  
+}
+
+// Function to check borders globally
+function checkBordersOnEdit(e) {
+  var range = e.range;
+  
+  var borders = range.getBorders(); // gets the borders of the edited cell
+  var hasBorders = (borders.top || borders.right || borders.bottom || borders.left); // boolean checks if borders are present
+
+  // If the cell does not have borders, revert the change
+  if (!hasBorders) {
+    range.setValue(null);
+    SpreadsheetApp.getUi().alert("You can only enter data in the designated cells. If you are seeing this error after trying to enter data into a designated cell, please contact ryan.grant@sixbynico.co.uk");
+  }
+}
+
+function updateTimestampOnEdit(e) {
+  var sheet = e.source.getActiveSheet(); // Get the active sheet
+  var editedCell = e.range; // Get the cell that was edited
+
+  //checks that we are on the correct sheet
+  if(sheet.getName() === "Maintenance Tracker")
+  {
+    //defines the range to watch and where to add the timestamp using the last column
+    var monitoredRange = sheet.getRange("C10:H31");
+    var lastColumn = sheet.getLastColumn();
+    var updateCell = sheet.getRange(editedCell.getRow(), lastColumn);
+  }
+  else{
+    //if on the wrong sheet then exit
+    return;
+  }
+  
+  // Check if the edited cell is within the monitored range
+  if (isCellInRange(editedCell, monitoredRange)) {
+    
+    // Get the user's email and current timestamp
+    var email = Session.getActiveUser().getEmail();
+    var timestamp = new Date();
+    
+    // Update the 'Last Updated By' cell with the email and timestamp
+    updateCell.setValue(email + " - " + formatTimestamp(timestamp));
+  }
+}
+
+// Utility function to check if a cell is within a specified range
+function isCellInRange(cell, range) {
+  var cellRow = cell.getRow();
+  var cellColumn = cell.getColumn();
+  var rangeRowStart = range.getRow();
+  var rangeRowEnd = range.getLastRow();
+  var rangeColumnStart = range.getColumn();
+  var rangeColumnEnd = range.getLastColumn();
+  
+  return cellRow >= rangeRowStart && cellRow <= rangeRowEnd &&
+         cellColumn >= rangeColumnStart && cellColumn <= rangeColumnEnd;
+}
+
+// Utility function to format timestamp
+function formatTimestamp(timestamp) {
+  // Customize the date format as needed
+  var options = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  };
+  return timestamp.toLocaleDateString('en-GB', options).replace(',', ''); // Format as DD/MM/YYYY HH:MM:SS
+}

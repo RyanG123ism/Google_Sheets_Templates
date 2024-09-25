@@ -1,0 +1,87 @@
+function onEdit(e) {
+
+  //gets the range of cells the user is currently trying to edit
+  var range = e.range;
+  //gets the active sheet the user is currently editing
+  var sheet = e.source.getActiveSheet();
+
+  //runs all functions 
+  overviewTextPopUp(range); 
+  checkBoxCheck(range,sheet);
+  hasBorders(range);//must run last due to undetremined functionality ending the runtime of the script
+} 
+
+//restricts data based on if the cell has borders
+function hasBorders(range){
+  var borders = range.getBorders();//gets the borders of edited cell
+  var hasBorders = (borders.top || borders.right || borders.bottom || borders.left);//booelan checks if borders are present and where
+
+  //checks if the cell DOES NOT have borders 
+  if (!hasBorders) {
+    //if the cell does not have borders, revert the change
+    range.setValue(null);
+    SpreadsheetApp.getUi().alert("You can only enter data in the designated cells. If you are seeing this error after trying to enter data into a designated cell, please contact ryan.grant@sixbynico.co.uk");
+  }
+}
+
+//populates the overview cells with the examplory message
+function overviewTextPopUp(range){
+
+  //sepcifies the range of cells that the script is applied to FOH Overview cell
+  if (range.getA1Notation() == "B22" && range.getValue() == "") {
+    range.setValue("*Please give a rough paragraph which provides an overview of how today's service went. Making sure to cover key points such as customer feedback, and complaints, communication between the teams etc.*");
+    range.setFontWeight('bold'); // This sets the font to bold
+  }
+
+  //sepcifies the range of cells that the script is applied to for BOH Overview cell
+  if (range.getA1Notation() == "K22" && range.getValue() == "") {
+    range.setValue("*Please give a rough paragraph which provides an overview of how today's service went. Making sure to cover key points such as customer feedback, and complaints, communication between the teams etc.*");
+    range.setFontWeight('bold'); // This sets the font to bold
+  }
+}
+
+//makes sure that multiple checkbox's in the 'bookings of interest' table cannot be checked at the same time 
+function checkBoxCheck(range, sheet){
+  
+  //defines the columns where your checkboxes are located
+  var checkboxCol1 = 12; // 'L'
+  var checkboxCol2 = 13; // 'M'
+
+  //checks to see if the edit came from this column
+  if (range.getColumn() == checkboxCol1 || range.getColumn() == checkboxCol2) {
+    var row = range.getRow();
+    var sheet = range.getSheet();
+
+    //if a checkbox was checked in the first column, uncheck the one in the second, and vice versa
+    if (range.getValue() === true) {
+      if (range.getColumn() == checkboxCol1) {
+        sheet.getRange(row, checkboxCol2).setValue(false);
+      } else if (range.getColumn() == checkboxCol2) {
+        sheet.getRange(row, checkboxCol1).setValue(false);
+      }
+    }
+  }
+}
+
+//DO NOT RUN UNLESS YOU WANT TO REMOVE ALL PROTECTIONS FROM ALL SHEETS
+//removes all ranges and sheet protections
+function removeAllProtections() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet();
+  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+  
+  // Remove all sheet protections
+  for (var i = 0; i < protections.length; i++) {
+    protections[i].remove();
+  }
+  
+  protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+  
+  // Remove all range protections
+  for (var j = 0; j < protections.length; j++) {
+    protections[j].remove();
+  }
+}
+
+
+
+

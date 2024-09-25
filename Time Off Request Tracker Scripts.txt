@@ -1,0 +1,157 @@
+function onEdit(e) {
+  updateTimestampOnEdit(e);
+}
+
+function submitRequest() {
+  // Define the spreadsheet and sheets
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var formSheet = ss.getSheetByName('Request Form'); // Replace with your form sheet name
+  var logSheet = ss.getSheetByName('Request Log');   // Replace with your log sheet name
+  var empListSheet = ss.getSheetByName('Employee List');
+
+  // Get the data from the form sheet
+  var email = formSheet.getRange("C14").getValue(); // Data from cell C14
+  var reqDate = formSheet.getRange("C15").getValue(); // Data from cell C15
+  var unpaidStatus = formSheet.getRange("C16").getValue(); // Data from cell C16
+  var reqNotes = formSheet.getRange("C17").getValue(); // Data from cell C17
+
+  //gets user email
+  var currentUserEmail = Session.getActiveUser().getEmail();
+
+  //if users email matches with req data
+  if (currentUserEmail === email) {
+
+    var empEmails = empListSheet.getRange("C6:C43").getValues().flat(); // gets list of emp emails from sheet - Flatten to get a 1D array
+
+    //looks for the email in the list of employee emails 
+    if (empEmails.indexOf(email) !== -1) {
+
+      // Get the email and name mapping data from the Employee List sheet
+      var empData = empListSheet.getRange("B6:C43").getValues(); // Names in column B, Emails in column C
+
+      //define name and timestamp for request - name is at default for now as we need to match it to the email first
+      var name = "Name not found"; // Default value if name is not found
+      var timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
+
+      for (var i = 0; i < empData.length; i++) {
+        if (empData[i][1] === email) { // Compare email in column C
+          name = empData[i][0]; // Get name from column B
+          break; // Exit loop once the matching email is found
+        }
+      }
+      // Start checking for the last row in column D from row 7 onward
+      var lastRowInColumnD = logSheet.getRange("D7:D").getValues().filter(String).length + 6; // +6 adjusts for the offset from row 7
+
+      // Calculate the first empty row using column D
+      var firstEmptyRow = lastRowInColumnD < 7 ? 7 : lastRowInColumnD + 1;
+
+      // Populate the log sheet with the data
+      logSheet.getRange(firstEmptyRow, 3).setValue(name); // C column
+      logSheet.getRange(firstEmptyRow, 4).setValue(email); // D column
+      logSheet.getRange(firstEmptyRow, 5).setValue(reqDate); // E column
+      logSheet.getRange(firstEmptyRow, 6).setValue(reqNotes); // F column
+      logSheet.getRange(firstEmptyRow, 7).setValue(timestamp); // G column
+      logSheet.getRange(firstEmptyRow, 8).setValue(unpaidStatus); // H column
+      
+      // Optional: Clear the form cells after submission
+      formSheet.getRange("C15:C17").clearContent();
+
+      // Optional: Show a message to the user
+      SpreadsheetApp.getUi().alert("Request submitted successfully!");
+
+    } else {
+      SpreadsheetApp.getUi().alert("The email address you entered is not found in the Employee List.");
+      return; // Stop further execution
+    }
+
+  } else {
+    SpreadsheetApp.getUi().alert("You can only submit a request using your own email address.");
+    return;
+  } 
+}
+
+function updateTimestampOnEdit(e) {
+  var sheet = e.source.getActiveSheet(); // Get the active sheet
+  var editedCell = e.range; // Get the cell that was edited
+
+  //checks that we are on the correct sheet
+  if(sheet.getName() === "Request Log")
+  {
+    //defines the range to watch and where to add the time stamp
+    var monitoredRange = sheet.getRange("C7:J301");
+    var timestampColumn = 11; // Column K
+    var updateCell = sheet.getRange(editedCell.getRow(), timestampColumn);//updated cell row + column K
+  }
+  else{
+    //if on the wrong sheet then exit
+    return;
+  }
+  
+  // Check if the edited cell is within the monitored range
+  if (isCellInRange(editedCell, monitoredRange)) {
+    
+    // Get the user's email and current timestamp
+    var email = Session.getActiveUser().getEmail();
+    var timestamp = new Date();
+    
+    updateCell.setValue(email + " - " + formatTimestamp(timestamp));
+  }
+}
+
+// function updateTimestampOnEdit(e) {
+//   var sheet = e.source.getActiveSheet(); // Get the active sheet
+//   var editedCell = e.range; // Get the cell that was edited
+  
+//   // Check that we are on the correct sheet
+//   if (sheet.getName() === "Request Log") {
+//     // Define the range to watch
+//     var monitoredRange = sheet.getRange("C7:J301");
+    
+//     // Check if the edited cell is within the monitored range
+//     if (isCellInRange(editedCell, monitoredRange)) {
+//       // Define the column where the timestamp should be added (Column K)
+//       var timestampColumn = 11; // Column K is the 11th column
+      
+//       // Get the user's email and current timestamp
+//       var email = Session.getActiveUser().getEmail();
+//       var timestamp = new Date();
+      
+//       // Set the value in the timestamp column on the same row as the edited cell
+//       var updateCell = sheet.getRange(editedCell.getRow(), timestampColumn);
+//       updateCell.setValue(email + " - " + formatTimestamp(timestamp));
+//     }
+//   } else {
+//     SpreadsheetApp.getUi().alert("OIN WRONG SHEET");
+//     return;
+//   }
+// }
+
+// Utility function to check if a cell is within a specified range
+function isCellInRange(cell, range) {
+  var cellRow = cell.getRow();
+  var cellColumn = cell.getColumn();
+  var rangeRowStart = range.getRow();
+  var rangeRowEnd = range.getLastRow();
+  var rangeColumnStart = range.getColumn();
+  var rangeColumnEnd = range.getLastColumn();
+  
+  return cellRow >= rangeRowStart && cellRow <= rangeRowEnd &&
+         cellColumn >= rangeColumnStart && cellColumn <= rangeColumnEnd;
+}
+
+// Utility function to format timestamp
+function formatTimestamp(timestamp) {
+  // Customize the date format as needed
+  var options = {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  };
+  return timestamp.toLocaleDateString('en-GB', options).replace(',', ''); // Format as DD/MM/YYYY HH:MM:SS
+}
+
+
+

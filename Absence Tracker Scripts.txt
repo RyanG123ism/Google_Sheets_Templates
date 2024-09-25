@@ -1,0 +1,135 @@
+function onEdit(e){
+  checkBoxCheck(e);
+  applyBordersToDynamicRangeStaffList();
+}
+
+
+function checkBoxCheck(e) {
+    //gets the sheet the user is currently active on
+  var sheet = e.source.getActiveSheet();
+  //gets the range of cells the user is currently trying to edit
+  var range = e.range;
+
+  //defines the columns where your checkboxes are located - FOR BOOKINGS OF INTEREST
+  var checkboxCol1 = 5; // 'E'
+  var checkboxCol2 = 6; // 'F'
+
+  //checks to see if the edit came from this column
+  if (range.getColumn() == checkboxCol1 || range.getColumn() == checkboxCol2) {
+    var row = range.getRow();
+    var sheet = range.getSheet();
+
+    //if a checkbox was checked in the first column, uncheck the one in the second, and vice versa
+    if (range.getValue() === true) {
+      if (range.getColumn() == checkboxCol1) {
+        sheet.getRange(row, checkboxCol2).setValue(false);
+      } else if (range.getColumn() == checkboxCol2) {
+        sheet.getRange(row, checkboxCol1).setValue(false);
+      }
+    }
+  }
+}
+
+function applyBordersToDynamicRangeStaffList() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Overview'); // Sheet name
+  var startRow = 13; // Starting row for the dynamic list
+  var columns = ['B', 'C', 'D']; // Columns to apply the dynamic borders to
+
+  columns.forEach(function(column) {
+    var startCell = column + startRow; // Starting cell for each column (e.g., B11, C11, D11)
+    var dataRange = sheet.getRange(startCell + ':' + column); // Define the range from startCell downwards
+    
+    // Get all the values in the range
+    var values = dataRange.getValues();
+    
+    // Determine the last row with data in the column
+    var lastRow = values.filter(String).length;
+    
+    // Clear all borders in the column first
+    sheet.getRange(startCell + ':' + column).setBorder(false, false, false, false, false, false); // Clear borders
+    
+    // Apply borders to the dynamic range
+    if (lastRow > 0) {
+      var dynamicRange = sheet.getRange(startCell + ':' + column + (startRow - 1 + lastRow)); // Adjust range to start from startCell
+      dynamicRange.setBorder(true, true, true, true, true, true); // Set borders around the range
+    }
+  });
+}
+
+function applyBordersToDynamicRangeFilterData() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Overview');
+  var startRow = 15; // Starting row for the dynamic list
+  var columns = ['F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N']; // Columns to apply the dynamic borders to
+
+  columns.forEach(function(column) {
+    var startCell = column + startRow;
+    var dataRange = sheet.getRange(startCell + ':' + column);
+    var values = dataRange.getValues();
+    var lastRow = values.filter(String).length;
+    
+    // Clear all borders in the column first
+    sheet.getRange(startCell + ':' + column).setBorder(false, false, false, false, false, false); // Clear borders
+    
+    //Apply borders to the dynamic range
+    if (lastRow > 0) {
+      var dynamicRange = sheet.getRange(startCell + ':' + column + (startRow - 1 + lastRow)); // Adjust range to start from startCell
+      dynamicRange.setBorder(true, true, true, true, true, true); // Set borders around the range
+    }
+  });
+}
+
+
+function filterAbsenceTrackerData() {
+  // Define sheets
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var overviewSheet = ss.getSheetByName('Overview');
+  var absenceTrackerSheet = ss.getSheetByName('Absence Tracker');
+  
+  // Get filter criteria from Overview sheet
+  var selectedName = overviewSheet.getRange("D10").getValue();
+  var selectedDate = overviewSheet.getRange("F10").getValue();
+  
+  // Clear any previous results in the range starting at F16
+  overviewSheet.getRange("F16:N").clearContent();
+  
+  // Define the range of the Absence Tracker data
+  var dataRange = absenceTrackerSheet.getRange("B12:J" + absenceTrackerSheet.getLastRow());
+  var data = dataRange.getValues();
+  
+  // Array to store the filtered results
+  var filteredData = [];
+  
+  // Loop through the data in the Absence Tracker sheet
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    var date = row[0];  // Column B (Date)
+    var name = row[1];  // Column C (Name)
+
+    // Check if the row matches the selected name and date
+    //(name === selectedName && (selectedDate === "" || date.getTime() >= selectedDateObj.getTime()))
+    //(name === selectedName && (selectedDate === "" || new Date(date).getTime() === new Date(selectedDate).getTime()))
+    if (name === selectedName && (selectedDate === "" || date.getTime() >= new Date(selectedDate).getTime())) {
+      filteredData.push(row.slice(0, 9));  // Push the relevant columns (B to F)
+    }
+  }
+  
+  // Populate the filtered results in the Overview sheet starting at F16
+  if (filteredData.length > 0) {
+    overviewSheet.getRange(16, 6, filteredData.length, filteredData[0].length).setValues(filteredData);
+  } else {
+    // If no data matches, optionally show a message
+    SpreadsheetApp.getUi().alert("No data found for the selected name and date.");
+  }
+
+  //applying dynamic borders to data
+  applyBordersToDynamicRangeFilterData();
+}
+
+function clearFilterData(){
+
+  var overviewSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Overview');
+  overviewSheet.getRange("F16:N").clearContent();
+  overviewSheet.getRange("F10").clearContent();
+  //applying dynamic borders to data
+  applyBordersToDynamicRangeFilterData();
+}
